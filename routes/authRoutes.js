@@ -41,7 +41,7 @@ router.post('/createResume', authenticate, createResume);
 router.put('/resume/:id', authenticate, updateResume);
 router.delete('/resume/:id', authenticate, deleteResume);
 router.get('/skills/:userId',authenticate, getSkillAnalysis);
-router.post('/skills/analyze',authenticate, analyzeSkills);
+router.post('/analyze',authenticate, analyzeSkills);
 router.post('/skills/save', authenticate,saveSkillAnalysis);
 router.get('/career/profile/:userId',authenticate, getCareerProfile);
 router.post('/career/recommendations/:userId', authenticate, getRecommendations);

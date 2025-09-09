@@ -26,7 +26,7 @@ const analyzeSkills = async (req, res, next) => {
     const userId = req.user.id;
     const prompt = `Given the following current skills: ${current_skills.join(', ')}\nand desired skills: ${desired_skills.join(', ')},\nanalyze the skill gaps and provide recommendations for bridging these gaps.\nInclude learning resources and estimated timeframes.`;
     const response = await axios.post(
-      'https://api-inference.huggingface.co/models/gpt2',
+      'https://api-inference.huggingface.co/models/facebook/bart-large-cnn',
       { inputs: prompt },
       {
         headers: {
