@@ -1,5 +1,5 @@
-const sequelize = require("../config/db");
-const { Sequelize, DataTypes } = require("sequelize");
+const { DataTypes, Sequelize } = require('sequelize');
+const sequelize = require('../config/db'); // or your sequelize instance
 
 const CareerProfile = sequelize.define("CareerProfile", {
   id: {
@@ -32,18 +32,18 @@ const CareerProfile = sequelize.define("CareerProfile", {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  createdAt: {
-    field: 'created_at',
+  created_at: {
     type: DataTypes.DATE,
     defaultValue: Sequelize.NOW
   },
-  updatedAt: {
-    field: 'updated_at',
+  updated_at: {
     type: DataTypes.DATE,
     defaultValue: Sequelize.NOW
   }
 }, {
-  tableName: 'career_profiles'
+  tableName: 'career_profiles',
+  timestamps: false, // Disable automatic timestamp fields
+  underscored: true // Use snake_case for field names
 });
 
 module.exports = CareerProfile;

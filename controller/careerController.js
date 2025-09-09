@@ -1,6 +1,7 @@
 const axios = require('axios');
-const { sequelize,CareerProfile }  = require("../model/careerprofile");
 
+const CareerProfile = require('../model/careerprofile');
+const sequelize = require('../config/db'); // Import sequelize separately
 const getRecommendations = async (req, res, next) => {
   try {
     const { skills, interests, experience, education } = req.body;
@@ -91,18 +92,29 @@ const parseRecommendations = (text) => {
 
 const getCareerProfile = async (req, res, next) => {
     try {
-       const userId = req.params.userId || (req.user && req.user.id);
-        // Find one by user_id
-       const profile = await CareerProfile.findAll({
-      where: { user_id: userId }
-    });
+        // Check if model is available
+        if (!CareerProfile) {
+            throw new Error('Database model not initialized');
+        }
 
-        if (profile.length === 0) {
+        const userId = req.params.userId || (req.user?.id);
+        
+        if (!userId) {
+            return res.status(400).json({ error: 'User ID required' });
+        }
+
+        const profile = await CareerProfile.findOne({
+            where: { user_id: userId }
+        });
+
+        // findOne returns null if not found, not an empty array
+        if (!profile) {
             return res.json({});
         }
 
-        res.json(profile[0]);
+        res.json(profile);
     } catch (err) {
+        console.error('Career profile error:', err);
         next(err);
     }
 };
