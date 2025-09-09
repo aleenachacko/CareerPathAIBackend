@@ -23,7 +23,8 @@ const {
 
 const {
   getRecommendations,
-  getCareerProfile
+  getCareerProfile,
+  saveProfile
 } = require('../controller/careerController');
 
 const {
@@ -44,6 +45,7 @@ router.post('/skills/analyze',authenticate, analyzeSkills);
 router.post('/skills/save', authenticate,saveSkillAnalysis);
 router.get('/career/profile/:userId',authenticate, getCareerProfile);
 router.post('/career/recommendations/:userId', authenticate, getRecommendations);
+router.post('/career/saveProfile/:userId', authenticate, saveProfile);
 router.put('/users/profile/:userId', authenticate, updateProfile);
 router.put('/users/password/:userId', authenticate, changePassword);
 
