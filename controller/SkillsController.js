@@ -1,6 +1,7 @@
 const Skill = require("../model/skill");
 const axios = require("axios");
-
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const getSkillAnalysis = async (req, res, next) => {
   try {
     const userId = req.params.userId || (req.user && req.user.id);
@@ -20,35 +21,73 @@ const getSkillAnalysis = async (req, res, next) => {
   }
 };
 
-const analyzeSkills = async (req, res, next) => {
+// Controller function
+const analyzeSkills = async (req, res) => {
   try {
     const { current_skills, desired_skills } = req.body;
-    const userId = req.user.id;
-    const prompt = `Given the following current skills: ${current_skills.join(', ')}\nand desired skills: ${desired_skills.join(', ')},\nanalyze the skill gaps and provide recommendations for bridging these gaps.\nInclude learning resources and estimated timeframes.`;
-    const response = await axios.post(
-      'https://api-inference.huggingface.co/models/facebook/bart-large-cnn',
-      { inputs: prompt },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.HUGGING_FACE_API_KEY}`
-        }
-      }
-    );
-    const analysisResult = response.data[0].generated_text;
+    const userId = req.user?.id || null;
+
+    // ✅ Basic validation
+    if (!current_skills?.length || !desired_skills?.length) {
+      return res.status(400).json({ message: "Both current and desired skills are required." });
+    }
+
+    // ✅ Build prompt
+    const prompt = `Given the following current skills: ${current_skills.join(', ')}, 
+and desired skills: ${desired_skills.join(', ')}, 
+analyze the skill gaps and provide recommendations for bridging these gaps. 
+Include learning resources and estimated timeframes.`;
+
+    // ✅ Call Gemini API
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    console.log("AI Skills Advisor Says:\n", text);
+
+    // ✅ Optional: Parse response into structured sections
+    const analysis = parseSkillAnalysis(text);
+
+    // ✅ Return both raw and structured output
     res.json({
-      missing_skills: desired_skills.filter(skill => !current_skills.includes(skill)),
-      analysis_result: analysisResult
+      userId,
+      rawText: text,
+      analysis
     });
+
   } catch (err) {
     console.error("Error analyzing skills:", err);
     res.status(500).json({ message: "Skill analysis failed", error: err.message });
   }
 };
 
+// ✅ Helper: Parse Gemini response into structured sections
+function parseSkillAnalysis(text) {
+  const sections = text.split(/\n\n+/);
+  const result = {
+    summary: sections[0] || '',
+    recommendations: [],
+    resources: []
+  };
+
+  for (const section of sections) {
+    const lower = section.toLowerCase();
+    if (lower.includes('recommendation') || lower.includes('bridge')) {
+      result.recommendations.push(section.trim());
+    } else if (lower.includes('resource') || lower.includes('learn') || lower.includes('course')) {
+      result.resources.push(section.trim());
+    }
+  }
+
+  return result;
+}
+
+
 const saveSkillAnalysis = async (req, res, next) => {
   try {
     const { current_skills, desired_skills, analysis_result } = req.body;
-    const userId = req.user.id;
+    const userId = req.params.userId || (req.user && req.user.id);
     const [skill, created] = await Skill.findOrCreate({
       where: { user_id: userId },
       defaults: {

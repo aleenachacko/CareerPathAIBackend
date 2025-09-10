@@ -1,7 +1,61 @@
 const axios = require('axios');
 
 const CareerProfile = require('../model/careerprofile');
-const sequelize = require('../config/db'); // Import sequelize separately
+const sequelize = require('../config/db'); 
+ const { GoogleGenerativeAI } = require("@google/generative-ai");
+// const getRecommendations = async (req, res, next) => {
+//   try {
+//     const { skills, interests, experience, education } = req.body;
+//     const userId = req.params.userId || (req.user && req.user.id);
+
+//     if (!userId) {
+//       return res.status(401).json({ message: "Unauthorized: Missing user ID." });
+//     }
+
+//     // ✅ Save or update career profile using raw SQL
+//     await sequelize.query(
+//       `INSERT INTO career_profiles (user_id, skills, interests, experience, education)
+//        VALUES (?, ?, ?, ?, ?)
+//        ON DUPLICATE KEY UPDATE skills = ?, interests = ?, experience = ?, education = ?`,
+//       {
+//         replacements: [
+//           userId, skills, interests, experience, education,
+//           skills, interests, experience, education
+//         ],
+//         type: sequelize.QueryTypes.INSERT
+//       }
+//     );
+
+//     // ✅ Shortened prompt for Hugging Face
+//     const prompt = `Suggest 5 careers for someone skilled in ${skills}, with ${experience} years experience and a ${education} degree.`;
+
+//     const response = await axios.post(
+//       'https://api-inference.huggingface.co/models/facebook/bart-large-cnn',
+//       { inputs: prompt },
+//       {
+//         headers: {
+//           Authorization: `Bearer ${process.env.HUGGING_FACE_API_KEY}`,
+//           'Content-Type': 'application/json'
+//         },
+//         timeout: 15000
+//       }
+//     );
+
+//     const rawText = response.data?.[0]?.summary_text || '';
+//     console.log("Raw Hugging Face response:", rawText);
+//     if (!rawText || rawText.trim().length === 0) {
+//   return res.json({ recommendations: [], message: "No recommendations generated. Try again or use a different model." });
+// }
+//     const recommendations = parseRecommendations(rawText);
+
+//     res.json({rawText, recommendations });
+
+//   } catch (err) {
+//     console.error("Error in getRecommendations:", err);
+//     res.status(500).json({ message: "Failed to generate recommendations", error: err.message });
+//   }
+// };
+
 const getRecommendations = async (req, res, next) => {
   try {
     const { skills, interests, experience, education } = req.body;
@@ -25,69 +79,70 @@ const getRecommendations = async (req, res, next) => {
       }
     );
 
-    // ✅ Shortened prompt for Hugging Face
-    const prompt = `Suggest 5 careers for someone skilled in ${skills}, with ${experience} years experience and a ${education} degree.`;
+     // ✅ Generate prompt for Gemini AI
+    
+    const prompt = `Suggest 5 specific career paths for someone with these skills: ${skills}, 
+    interests: ${interests}, ${experience} years of professional experience, 
+    and a ${education} degree. For each career, provide a brief description of why it would be a good fit.`;
 
-    const response = await axios.post(
-      'https://api-inference.huggingface.co/models/facebook/bart-large-cnn',
-      { inputs: prompt },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.HUGGING_FACE_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 15000
-      }
-    );
+    // ✅ Initialize Gemini API
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const rawText = response.data?.[0]?.summary_text || '';
-    console.log("Raw Hugging Face response:", rawText);
-    if (!rawText || rawText.trim().length === 0) {
-  return res.json({ recommendations: [], message: "No recommendations generated. Try again or use a different model." });
-}
-    const recommendations = parseRecommendations(rawText);
+    // ✅ Generate content
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-    res.json({rawText, recommendations });
+    console.log("Raw Gemini response:", text);
+
+    // ✅ Parse structured recommendations
+    const recommendations = parseGeminiResponse(text);
+
+    // ✅ Send both structured and raw response
+    res.json({
+      recommendations,
+      rawText: text
+    });
 
   } catch (err) {
     console.error("Error in getRecommendations:", err);
-    res.status(500).json({ message: "Failed to generate recommendations", error: err.message });
-  }
-};
-
-// 🧾 Simple parser for Hugging Face output
-const parseRecommendations = (text) => {
-  const recommendations = [];
-
-  // Try to extract numbered items first
-  const numberedMatches = text.match(/\d+\.\s*[^\n]+/g);
-  if (numberedMatches?.length) {
-    numberedMatches.slice(0, 5).forEach((line) => {
-      recommendations.push({
-        title: line.replace(/^\d+\.\s*/, '').trim(),
-        description: '',
-        skills: '',
-        growth: ''
+    
+    // Handle specific API errors
+    if (err.message.includes('model') && err.message.includes('not found')) {
+      return res.status(400).json({ 
+        message: "Model configuration error. Please check the model name.", 
+        error: err.message 
       });
+    }
+    
+    res.status(500).json({ 
+      message: "Failed to generate recommendations", 
+      error: err.message 
     });
-    return recommendations;
   }
 
-  // Fallback: extract career-like phrases from freeform text
-  const careerRegex = /\b(?:career|job|role|position)\b.*?\b(?:in|as)\b\s+([A-Za-z\s]+)/gi;
-  const matches = [...text.matchAll(careerRegex)];
+};
+// ✅ Helper function to parse Gemini response
+function parseGeminiResponse(rawText) {
+  const recommendations = [];
+  const lines = rawText.split('\n');
 
-  matches.slice(0, 5).forEach((match) => {
-    recommendations.push({
-      title: match[1].trim(),
-      description: '',
-      skills: '',
-      growth: ''
-    });
-  });
+  for (const line of lines) {
+    const cleanLine = line.trim();
+    if (/^\d+\./.test(cleanLine)) {
+      const parts = cleanLine.split(/[-:]/);
+      if (parts.length >= 2) {
+        recommendations.push({
+          title: parts[0].replace(/^\d+\.\s*/, '').trim(),
+          description: parts.slice(1).join(':').trim()
+        });
+      }
+    }
+  }
 
   return recommendations;
-};
+}
 
 
 const getCareerProfile = async (req, res, next) => {

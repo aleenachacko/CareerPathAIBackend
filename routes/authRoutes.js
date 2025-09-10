@@ -42,7 +42,7 @@ router.put('/resume/:id', authenticate, updateResume);
 router.delete('/resume/:id', authenticate, deleteResume);
 router.get('/skills/:userId',authenticate, getSkillAnalysis);
 router.post('/analyze',authenticate, analyzeSkills);
-router.post('/skills/save', authenticate,saveSkillAnalysis);
+router.post('/skills/save/:userId', authenticate,saveSkillAnalysis);
 router.get('/career/profile/:userId',authenticate, getCareerProfile);
 router.post('/career/recommendations/:userId', authenticate, getRecommendations);
 router.post('/career/saveProfile/:userId', authenticate, saveProfile);
