@@ -12,8 +12,8 @@ const getSkillAnalysis = async (req, res, next) => {
       return res.json(null);
     }
     const result = skills[0];
-    result.current_skills = JSON.parse(result.current_skills);
-    result.desired_skills = JSON.parse(result.desired_skills);
+    // result.current_skills = JSON.parse(result.current_skills);
+    // result.desired_skills = JSON.parse(result.desired_skills);
     res.json(result);
   } catch (err) {
     console.error("Error fetching skill analysis:", err);
