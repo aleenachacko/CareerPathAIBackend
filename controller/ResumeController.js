@@ -20,11 +20,11 @@ const getResumes = async (req, res, next) => {
 
 const createResume = async (req, res, next) => {
   try {
+    const userId = req.params.userId || (req.user && req.user.id);
     // Ensure user is authenticated
-    if (!req.user || !req.user.id) {
+    if (!userId) {
       return res.status(401).json({ message: "Unauthorized: Please log in to create a resume." });
     }
-    const userId = req.user.id;
     const { title, summary, experience, education, skills, certifications } = req.body;
 
     // Validate required fields
@@ -56,7 +56,7 @@ const createResume = async (req, res, next) => {
 
 const updateResume = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.params.userId || (req.user && req.user.id);
     const resumeId = req.params.id;
     const { title, summary, experience, education, skills, certifications } = req.body;
 
