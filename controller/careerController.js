@@ -86,7 +86,7 @@ const getRecommendations = async (req, res, next) => {
     and a ${education} degree. For each career, provide a brief description of why it would be a good fit.`;
 
     // ✅ Initialize Gemini API
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const genAI = new GoogleGenerativeAI(process.env.HUGGING_FACE_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // ✅ Generate content

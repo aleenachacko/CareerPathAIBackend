@@ -1,7 +1,7 @@
 const Skill = require("../model/skill");
 const axios = require("axios");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.HUGGING_FACE_API_KEY);
 const getSkillAnalysis = async (req, res, next) => {
   try {
     const userId = req.params.userId || (req.user && req.user.id);
@@ -48,14 +48,30 @@ Include learning resources and estimated timeframes.`;
 
     // ✅ Optional: Parse response into structured sections
     const analysis = parseSkillAnalysis(text);
-
+  const [skill, created] = await Skill.findOrCreate({
+      where: { user_id: userId },
+      defaults: {
+        current_skills: JSON.stringify(current_skills),
+        desired_skills: JSON.stringify(desired_skills),
+        analysis
+      }
+    });
+    if (!created) {
+      await Skill.update(
+        {
+          current_skills: JSON.stringify(current_skills),
+          desired_skills: JSON.stringify(desired_skills),
+          analysis
+        },
+        { where: { user_id: userId } }
+      );
     // ✅ Return both raw and structured output
     res.json({
       userId,
       rawText: text,
       analysis
     });
-
+    }
   } catch (err) {
     console.error("Error analyzing skills:", err);
     res.status(500).json({ message: "Skill analysis failed", error: err.message });
